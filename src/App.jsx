@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { Package, Truck, Store, Coffee, Utensils, ArrowLeft, Plus, Minus, ShoppingCart, ChevronRight, ShoppingBag, MapPin, CheckCircle, Briefcase, AlertTriangle, X, Send, Copy, ClipboardCheck, ArrowRightLeft, Lock, Ban, Edit2 } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Package, Truck, Store, Coffee, Utensils, ArrowLeft, Plus, Minus, ShoppingCart, ChevronRight, ShoppingBag, MapPin, CheckCircle, Briefcase, AlertTriangle, X, Send, Copy, ClipboardCheck, ArrowRightLeft, Lock, Ban, Edit2, Clock } from 'lucide-react';
 
 // ==========================================
 // GLOSSARY & SINGLE SOURCE OF TRUTH 
@@ -54,7 +54,7 @@ const GLOSSARY = {
 };
 
 // ==========================================
-// MASTER CATALOG (Sector-Mapped)
+// MASTER CATALOG 
 // ==========================================
 const MASTER_CATALOG = [
   { id: 'item-wings', name: 'MM Chicken Wings', unit: 'Bulk Case', category: 'Meat', preferredVendor: "Sam's Club", locations: ['loc-restaurant'] },
@@ -74,10 +74,23 @@ const MASTER_CATALOG = [
 ];
 
 // ==========================================
+// LOCAL STORAGE ENGINE (Persists Data on App Close)
+// ==========================================
+function useStickyState(defaultValue, key) {
+  const [value, setValue] = useState(() => {
+    const stickyValue = window.localStorage.getItem(key);
+    return stickyValue !== null ? JSON.parse(stickyValue) : defaultValue;
+  });
+  useEffect(() => {
+    window.localStorage.setItem(key, JSON.stringify(value));
+  }, [key, value]);
+  return [value, setValue];
+}
+
+// ==========================================
 // MODULAR COMPONENTS
 // ==========================================
 
-// 0. Security Gatekeeper Component
 const Gatekeeper = ({ onUnlock }) => {
   const [input, setInput] = useState("");
   const [error, setError] = useState(false);
@@ -156,7 +169,6 @@ const Gatekeeper = ({ onUnlock }) => {
   );
 };
 
-// 1. Header Component
 const AppHeader = ({ view, setView, totalItems }) => (
   <header className="bg-zinc-950 text-zinc-100 p-4 flex items-center justify-between border-b border-zinc-800 shadow-[0_4px_20px_rgba(0,0,0,0.5)] relative z-20">
     <div className="flex items-center gap-3">
@@ -181,37 +193,37 @@ const AppHeader = ({ view, setView, totalItems }) => (
   </header>
 );
 
-// 2. Location Card (Dashboard)
 const LocationCard = ({ location, requestedCount, onClick }) => {
   const Icon = location.icon;
+  const theme = location.theme;
+  
   return (
     <button 
       onClick={onClick}
-      className="w-full bg-zinc-800 p-5 rounded-2xl border border-zinc-700 flex items-center justify-between mb-4 hover:border-cyan-400 transition-all text-left group shadow-lg hover:shadow-[0_0_20px_rgba(6,182,212,0.15)] relative overflow-hidden"
+      className={`w-full bg-zinc-800 p-5 rounded-2xl border border-zinc-700 flex items-center justify-between mb-4 ${theme.borderHover} transition-all text-left group shadow-lg hover:${theme.shadow} relative overflow-hidden`}
     >
-      <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/0 via-cyan-500/5 to-cyan-500/0 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+      <div className="absolute inset-0 bg-gradient-to-r from-zinc-800 via-zinc-700/10 to-zinc-800 opacity-0 group-hover:opacity-100 transition-opacity"></div>
       
       <div className="flex items-center gap-4 relative z-10">
-        <div className="bg-zinc-900 border border-zinc-700 p-3 rounded-xl text-zinc-400 group-hover:text-cyan-400 group-hover:border-cyan-500/50 transition-colors">
-          <Icon size={28} className="group-hover:drop-shadow-[0_0_8px_rgba(34,211,238,0.6)]" />
+        <div className={`bg-zinc-900 border border-zinc-700 p-3 rounded-xl text-zinc-400 ${theme.textHover} ${theme.borderHover} transition-colors`}>
+          <Icon size={28} className={`group-hover:${theme.glow}`} />
         </div>
         <div>
           <h2 className="font-black text-zinc-100 text-lg tracking-wide">{location.name}</h2>
           <p className="text-sm text-zinc-500 font-semibold">
             {requestedCount > 0 ? (
-              <span className="text-cyan-400 font-bold">{requestedCount} items queued</span>
+              <span className={`${theme.text} font-bold`}>{requestedCount} items queued</span>
             ) : (
               "Tap to initialize"
             )}
           </p>
         </div>
       </div>
-      <ChevronRight size={20} className="text-zinc-600 group-hover:text-cyan-400 relative z-10" />
+      <ChevronRight size={20} className={`text-zinc-600 ${theme.textHover} relative z-10`} />
     </button>
   );
 };
 
-// 3. Catalog Row (Order Builder)
 const CatalogRow = ({ item, quantity, onAdd, onRemove, onEdit, activeTheme }) => (
   <div className="p-4 rounded-2xl border border-zinc-800 bg-zinc-800 mb-3 flex items-center justify-between shadow-md transition-colors hover:border-zinc-700">
     <div className="flex-1 pr-2">
@@ -251,9 +263,7 @@ const CatalogRow = ({ item, quantity, onAdd, onRemove, onEdit, activeTheme }) =>
   </div>
 );
 
-// 4. Edit Item Modal Component (Upgraded with Location Tagging)
 const EditItemModal = ({ item, onSave, onClose }) => {
-  // Ensure we default to an empty array if locations isn't set
   const [editedItem, setEditedItem] = useState({ ...item, locations: item.locations || [] });
 
   const toggleLocation = (locId) => {
@@ -317,7 +327,6 @@ const EditItemModal = ({ item, onSave, onClose }) => {
             </select>
           </div>
 
-          {/* DYNAMIC SECTOR TAGGING */}
           <div className="pt-2">
             <label className="text-[10px] font-black text-cyan-400 uppercase tracking-widest ml-1 mb-2 block">Target Sectors (Select Multiple)</label>
             <div className="flex flex-wrap gap-2">
@@ -335,9 +344,6 @@ const EditItemModal = ({ item, onSave, onClose }) => {
                 );
               })}
             </div>
-            {editedItem.locations.length === 0 && (
-              <p className="text-[10px] font-bold text-rose-500 mt-2 ml-1">At least one sector is required.</p>
-            )}
           </div>
           
           <div className="flex gap-3 pt-4 border-t border-zinc-800 mt-6">
@@ -354,7 +360,6 @@ const EditItemModal = ({ item, onSave, onClose }) => {
   );
 };
 
-// 5. Shortage Allocator Modal (Exec Override)
 const ShortageAllocatorModal = ({ itemId, catalog, orders, onResolve, onCancel }) => {
   const itemData = catalog.find(i => i.id === itemId);
   const locationsWithItem = Object.keys(orders).filter(locId => orders[locId][itemId] > 0);
@@ -407,7 +412,6 @@ const ShortageAllocatorModal = ({ itemId, catalog, orders, onResolve, onCancel }
   );
 };
 
-// 6. Reallocation Modal (Mid-Route Adjustments)
 const ItemReallocationModal = ({ itemId, catalog, orders, onUpdateQuantity, onClose }) => {
   const itemData = catalog.find(i => i.id === itemId);
   
@@ -422,8 +426,8 @@ const ItemReallocationModal = ({ itemId, catalog, orders, onUpdateQuantity, onCl
     <div className="fixed inset-0 bg-zinc-950/80 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
       <div className="bg-zinc-900 border border-zinc-700 rounded-[2rem] p-6 w-full max-w-sm shadow-[0_0_40px_rgba(0,0,0,0.8)] animate-in zoom-in-95 duration-200">
         <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3 text-cyan-400">
-            <ArrowRightLeft size={24} className="drop-shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
+          <div className="flex items-center gap-3 text-fuchsia-400">
+            <ArrowRightLeft size={24} className="drop-shadow-[0_0_8px_rgba(232,121,249,0.8)]" />
             <h2 className="font-black text-xl text-zinc-100 tracking-tight">Reallocate Item</h2>
           </div>
           <button 
@@ -435,15 +439,15 @@ const ItemReallocationModal = ({ itemId, catalog, orders, onUpdateQuantity, onCl
           </button>
         </div>
 
-        <div className="mb-6 flex flex-col gap-3 bg-cyan-950/20 p-4 rounded-xl border border-cyan-900/50">
+        <div className="mb-6 flex flex-col gap-3 bg-fuchsia-900/10 p-4 rounded-xl border border-fuchsia-500/20">
            <div className="flex items-center justify-between">
              <div>
-               <p className="font-bold text-cyan-50">{itemData.name}</p>
-               <p className="text-[10px] text-cyan-400 font-black uppercase tracking-wider mt-1">{itemData.unit}</p>
+               <p className="font-bold text-fuchsia-100">{itemData.name}</p>
+               <p className="text-[10px] text-fuchsia-400 font-black uppercase tracking-wider mt-1">{itemData.unit}</p>
              </div>
              <div className="text-right">
-               <p className="text-[10px] text-cyan-500 font-bold uppercase tracking-wider mb-0.5">Total on Truck</p>
-               <p className="font-black text-3xl text-cyan-400 leading-none drop-shadow-[0_0_8px_rgba(34,211,238,0.6)]">{maxTotal}</p>
+               <p className="text-[10px] text-fuchsia-500 font-bold uppercase tracking-wider mb-0.5">Total on Truck</p>
+               <p className="font-black text-3xl text-fuchsia-400 leading-none drop-shadow-[0_0_8px_rgba(232,121,249,0.6)]">{maxTotal}</p>
              </div>
            </div>
 
@@ -517,17 +521,18 @@ const ItemReallocationModal = ({ itemId, catalog, orders, onUpdateQuantity, onCl
 };
 
 // 7. Universal Chronological Manifest Generator Modal
-const ShareManifestModal = ({ manifestType, orders, catalog, purchasedFrom, deliveredStatus, oosStatus, masterShoppingList, onClose }) => {
+const ShareManifestModal = ({ manifestType, orders, catalog, purchasedFrom, deliveredStatus, oosStatus, masterShoppingList, deliveryStartTime, onClose }) => {
   const [copied, setCopied] = useState(false);
 
   const generateManifestText = () => {
     let text = "";
     let hasItems = false;
+    const now = new Date().toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 
     const oosItems = Object.keys(masterShoppingList).filter(id => oosStatus[id]);
 
     if (manifestType === 'grocery') {
-      text = "🛒 MORNING RUN PLAN\nTarget Shopping List:\n\n";
+      text = `🛒 MORNING RUN PLAN\nCreated: ${now}\nTarget Shopping List:\n\n`;
       
       [...GLOSSARY.vendors, "Unassigned"].forEach(vendorName => {
         const vendorItems = Object.entries(masterShoppingList).filter(([itemId]) => {
@@ -551,7 +556,7 @@ const ShareManifestModal = ({ manifestType, orders, catalog, purchasedFrom, deli
     } 
 
     else if (manifestType === 'oos') {
-      text = "🚨 URGENT: OUT OF STOCK\nI am currently shopping and cannot source the following target items:\n\n";
+      text = `🚨 URGENT: OUT OF STOCK\nAlert Time: ${now}\nI am currently shopping and cannot source the following target items:\n\n`;
       
       if (oosItems.length > 0) {
         oosItems.forEach(itemId => {
@@ -565,7 +570,7 @@ const ShareManifestModal = ({ manifestType, orders, catalog, purchasedFrom, deli
     }
     
     else if (manifestType === 'delivery') {
-      text = "🚚 TRUCK LOADED\nHeading to drop-offs. Current Fulfillment Plan:\n\n";
+      text = `🚚 TRUCK LOADED\nDeparting: ${now}\nHeading to drop-offs. Current Fulfillment Plan:\n\n`;
       Object.values(GLOSSARY.locations).forEach(loc => {
         const locOrders = orders[loc.id] || {};
         const activeItems = Object.keys(locOrders).filter(itemId => locOrders[itemId] > 0 && !oosStatus[itemId]);
@@ -585,7 +590,10 @@ const ShareManifestModal = ({ manifestType, orders, catalog, purchasedFrom, deli
     }
 
     else if (manifestType === 'final') {
-      text = "✅ RUN COMPLETE\nOfficial Delivery Record:\n\n";
+      text = `✅ RUN COMPLETE\nOfficial Delivery Record:\n`;
+      text += `⏱️ Started: ${deliveryStartTime || "Unknown"}\n`;
+      text += `⏱️ Finished: ${now}\n\n`;
+
       Object.values(GLOSSARY.locations).forEach(loc => {
         const locOrders = orders[loc.id] || {};
         const deliveredItems = Object.keys(locOrders).filter(itemId => locOrders[itemId] > 0 && deliveredStatus[loc.id]?.[itemId] && !oosStatus[itemId]);
@@ -677,27 +685,36 @@ const ShareManifestModal = ({ manifestType, orders, catalog, purchasedFrom, deli
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  // START IN THE UNIFIED BUILDER VIEW
-  const [view, setView] = useState('builder'); 
-  const [activeLocKey, setActiveLocKey] = useState(Object.keys(GLOSSARY.locations)[0]); 
-  const [masterTab, setMasterTab] = useState('grocery'); 
+  const [view, setView] = useStickyState('builder', 'app_view'); 
+  const [activeLocKey, setActiveLocKey] = useStickyState(Object.keys(GLOSSARY.locations)[0], 'app_activeLocKey'); 
+  const [masterTab, setMasterTab] = useStickyState('grocery', 'app_masterTab'); 
   
-  const [catalog, setCatalog] = useState(MASTER_CATALOG);
+  // Persist all critical data arrays and objects using our new LocalStorage Hook
+  const [catalog, setCatalog] = useStickyState(MASTER_CATALOG, 'app_catalog');
+  const [orders, setOrders] = useStickyState({}, 'app_orders');
+  const [deliveredStatus, setDeliveredStatus] = useStickyState({}, 'app_deliveredStatus');
+  const [procuredStatus, setProcuredStatus] = useStickyState({}, 'app_procuredStatus');
+  const [purchasedFrom, setPurchasedFrom] = useStickyState({}, 'app_purchasedFrom');
+  const [oosStatus, setOosStatus] = useStickyState({}, 'app_oosStatus');
+  
+  // NEW: Delivery Timestamp State
+  const [deliveryStartTime, setDeliveryStartTime] = useStickyState(null, 'app_deliveryStartTime');
+
+  // Temporary UI states (Don't need to persist these)
   const [showAddItemForm, setShowAddItemForm] = useState(false);
   const [editingItem, setEditingItem] = useState(null); 
-  
-  // NEW: Ensure default location array for the injection form includes the active sector
   const [newItem, setNewItem] = useState({ name: '', unit: '', preferredVendor: '', locations: [] });
-
-  const [orders, setOrders] = useState({});
-  const [deliveredStatus, setDeliveredStatus] = useState({});
-  const [procuredStatus, setProcuredStatus] = useState({});
-  const [purchasedFrom, setPurchasedFrom] = useState({});
-  const [oosStatus, setOosStatus] = useState({});
-
   const [shortagePromptItem, setShortagePromptItem] = useState(null);
   const [manifestModalType, setManifestModalType] = useState(null); 
   const [reallocateItem, setReallocateItem] = useState(null);
+
+  // Helper to switch tabs and capture the Timestamp if entering Delivery mode
+  const handleMasterTabSwitch = (tab) => {
+    if (tab === 'delivery' && !deliveryStartTime) {
+      setDeliveryStartTime(new Date().toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }));
+    }
+    setMasterTab(tab);
+  };
 
   const toggleDelivery = (locId, itemId) => {
     setDeliveredStatus(prev => ({ ...prev, [locId]: { ...(prev[locId] || {}), [itemId]: !(prev[locId]?.[itemId]) } }));
@@ -761,7 +778,7 @@ export default function App() {
     setCatalog(prev => [...prev, { 
       id: newItemId, name: newItem.name.trim(), unit: newItem.unit.trim() || 'Each', 
       category: 'Custom', preferredVendor: newItem.preferredVendor || "Local Supplier",
-      locations: newItem.locations // Save the multi-sector tags!
+      locations: newItem.locations 
     }]);
     setNewItem({ name: '', unit: '', preferredVendor: '', locations: [] });
     setShowAddItemForm(false);
@@ -907,7 +924,6 @@ export default function App() {
                   </form>
                 ) : (
                   <button onClick={() => {
-                    // Default the locations array to the currently active sector when opening the form!
                     setNewItem({ name: '', unit: '', preferredVendor: '', locations: [activeLocation.id] });
                     setShowAddItemForm(true);
                   }} className={`w-full mt-4 p-4 rounded-2xl border border-dashed border-zinc-700 text-zinc-500 font-black flex items-center justify-center gap-2 hover:bg-zinc-800 ${activeLocation.theme.borderHover} ${activeLocation.theme.textHover} transition-all uppercase tracking-wider`}>
@@ -923,15 +939,17 @@ export default function App() {
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
                <div className="mb-6 mt-2">
                 <h2 className="text-3xl font-black text-zinc-100 tracking-tight uppercase">{GLOSSARY.views.masterList}</h2>
-                <p className="text-zinc-500 mt-1 font-semibold uppercase tracking-wider text-xs">Procurement & Routing</p>
+                <p className="text-zinc-500 mt-1 font-semibold uppercase tracking-wider text-xs flex items-center gap-2">
+                  <Clock size={12} /> {deliveryStartTime ? `Delivery Locked In: ${deliveryStartTime}` : "Procurement Phase Active"}
+                </p>
               </div>
 
               {/* Tab Navigation */}
               <div className="flex bg-zinc-950 p-1.5 rounded-xl mb-6 shadow-inner border border-zinc-800 relative z-0">
-                <button onClick={() => setMasterTab('grocery')} className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg font-black text-sm uppercase tracking-wider transition-all z-10 ${masterTab === 'grocery' ? 'bg-zinc-800 text-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.15)] border border-zinc-700' : 'text-zinc-500 hover:text-zinc-300'}`}>
+                <button onClick={() => handleMasterTabSwitch('grocery')} className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg font-black text-sm uppercase tracking-wider transition-all z-10 ${masterTab === 'grocery' ? 'bg-zinc-800 text-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.15)] border border-zinc-700' : 'text-zinc-500 hover:text-zinc-300'}`}>
                   <ShoppingBag size={18} /> {GLOSSARY.views.tabs.grocery}
                 </button>
-                <button onClick={() => setMasterTab('delivery')} className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg font-black text-sm uppercase tracking-wider transition-all z-10 ${masterTab === 'delivery' ? 'bg-zinc-800 text-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.15)] border border-zinc-700' : 'text-zinc-500 hover:text-zinc-300'}`}>
+                <button onClick={() => handleMasterTabSwitch('delivery')} className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg font-black text-sm uppercase tracking-wider transition-all z-10 ${masterTab === 'delivery' ? 'bg-zinc-800 text-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.15)] border border-zinc-700' : 'text-zinc-500 hover:text-zinc-300'}`}>
                   <MapPin size={18} /> {GLOSSARY.views.tabs.delivery}
                 </button>
               </div>
@@ -1145,7 +1163,9 @@ export default function App() {
                   <CheckCircle size={32} className="drop-shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
                 </div>
                 <h2 className="text-3xl font-black text-zinc-100 tracking-tight uppercase">{GLOSSARY.views.summary}</h2>
-                <p className="text-zinc-500 mt-1 font-semibold text-xs uppercase tracking-widest">Routing Successfully Terminated</p>
+                <p className="text-zinc-500 mt-1 font-semibold text-xs uppercase tracking-widest flex items-center justify-center gap-2">
+                  <Clock size={12} /> {deliveryStartTime ? `Run Time: ${deliveryStartTime}` : "Routing Successfully Terminated"}
+                </p>
               </div>
 
               <div className="bg-zinc-800 p-5 rounded-2xl shadow-md border border-zinc-700 mb-6">
@@ -1211,11 +1231,14 @@ export default function App() {
                 
                 <button 
                   onClick={() => {
+                    // COMPLETELY RESET LOCAL STORAGE FOR NEXT RUN
                     setOrders({});
                     setDeliveredStatus({});
                     setProcuredStatus({});
                     setPurchasedFrom({});
                     setOosStatus({}); 
+                    setDeliveryStartTime(null);
+                    // Notice we DO NOT clear the custom catalog items, those stay forever!
                     setView('builder');
                   }}
                   className="w-full bg-zinc-900 border border-zinc-800 hover:bg-rose-950/40 hover:border-rose-500/50 hover:text-rose-400 text-zinc-500 font-black uppercase tracking-wider py-4 rounded-xl shadow-inner flex items-center justify-center gap-2 transition-all"
@@ -1266,6 +1289,7 @@ export default function App() {
             deliveredStatus={deliveredStatus}
             oosStatus={oosStatus} 
             masterShoppingList={masterShoppingList}
+            deliveryStartTime={deliveryStartTime}
             onClose={() => setManifestModalType(null)}
           />
         )}
