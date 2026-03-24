@@ -57,20 +57,20 @@ const GLOSSARY = {
 // MASTER CATALOG 
 // ==========================================
 const MASTER_CATALOG = [
-  { id: 'item-wings', name: 'MM Chicken Wings', unit: 'Bulk Case', category: 'Meat', preferredVendor: "Sam's Club", locations: ['loc-restaurant'] },
+  { id: 'item-wings', name: 'Chicken Wings', unit: 'Bulk Case', category: 'Meat', preferredVendor: "Sam's Club", locations: ['loc-restaurant'] },
   { id: 'item-bacon', name: 'Hickory Bacon', unit: '5lb Pack', category: 'Meat', preferredVendor: "Restaurant Depot", locations: ['loc-restaurant'] },
   { id: 'item-hoagie', name: '11" Hoagie Rolls', unit: '6-Pack Case', category: 'Bread', preferredVendor: "Restaurant Depot", locations: ['loc-restaurant'] },
-  { id: 'item-sourdough', name: 'Farmhouse Sourdough', unit: 'Loaf', category: 'Bread', preferredVendor: "Walmart", locations: ['loc-bakery', 'loc-restaurant'] },
+  { id: 'item-sourdough', name: 'Pre-Sliced Sourdough', unit: 'Loaf', category: 'Bread', preferredVendor: "Walmart", locations: ['loc-bakery', 'loc-restaurant'] },
   { id: 'item-gorgonzola', name: 'Crumbled Gorgonzola', unit: '5lb Bag', category: 'Dairy', preferredVendor: "Restaurant Depot", locations: ['loc-restaurant'] },
-  { id: 'item-ranch', name: 'ADM Ranch Dressing', unit: '1 Gallon Jug', category: 'Pantry', preferredVendor: "Restaurant Depot", locations: ['loc-restaurant'] },
-  { id: 'item-bbq', name: 'Sweet Baby Rays BBQ', unit: '1 Gallon Jug', category: 'Pantry', preferredVendor: "Restaurant Depot", locations: ['loc-restaurant'] },
+  { id: 'item-ranch', name: 'Ranch Dressing', unit: '1 Gallon Jug', category: 'Pantry', preferredVendor: "Restaurant Depot", locations: ['loc-restaurant'] },
+  { id: 'item-bbq', name: 'BBQ Sauce', unit: '1 Gallon Jug', category: 'Pantry', preferredVendor: "Restaurant Depot", locations: ['loc-restaurant'] },
   { id: 'item-drpepper', name: 'Dr. Pepper 20oz', unit: '24-Pack Case', category: 'Beverage', preferredVendor: "Sam's Club", locations: ['loc-store', 'loc-restaurant'] },
   { id: 'item-sprite', name: 'Sprite 16.9oz', unit: '24-Pack Case', category: 'Beverage', preferredVendor: "Sam's Club", locations: ['loc-store', 'loc-restaurant'] },
   { id: 'item-sweettea', name: 'Sweet Tea', unit: 'Gallon', category: 'Beverage', preferredVendor: "Walmart", locations: ['loc-store', 'loc-restaurant'] },
   { id: 'item-creamer-vanilla', name: 'French Vanilla Creamer', unit: '50ct Box', category: 'Dairy', preferredVendor: "Sam's Club", locations: ['loc-office', 'loc-store'] },
   { id: 'item-deli-cont', name: '8oz Clear Deli Containers', unit: '240ct Case', category: 'Supplies', preferredVendor: "Restaurant Depot", locations: ['loc-restaurant', 'loc-bakery'] },
-  { id: 'item-sprinkles', name: 'Brownie Sprinkles', unit: 'Jar', category: 'Baking', preferredVendor: "Amazon", locations: ['loc-bakery'] },
-  { id: 'item-flash-refills', name: 'Flash Mini Refills', unit: 'Pack', category: 'Supplies', preferredVendor: "Amazon", locations: ['loc-office'] },
+  { id: 'item-sprinkles', name: 'Chocolate Sprinkles', unit: 'Jar', category: 'Baking', preferredVendor: "Amazon", locations: ['loc-bakery'] },
+  { id: 'item-flash-refills', name: 'Mini Mini Marshmallows', unit: 'Pack', category: 'Supplies', preferredVendor: "Amazon", locations: ['loc-office'] },
 ];
 
 // ==========================================
