@@ -1,108 +1,102 @@
-import React, { useState } from 'react';
-import { GLOSSARY, MASTER_CATALOG } from './glossary';
-import { useStickyState } from './hooks/useStickyState';
+import React, { useState, useEffect } from 'react';
+import { supabase } from './supabaseClient';
+import { GLOSSARY } from './glossary';
 import { Gatekeeper, AppHeader } from './components/UIComponents';
 import AdminCommandCenter from './components/AdminCommandCenter';
 import DriverConsole from './components/DriverConsole';
 
 export default function App() {
   const [activeRole, setActiveRole] = useState(null);
-  const [catalog, setCatalog] = useStickyState(MASTER_CATALOG, 'app_catalog');
-  
-  // Database-ready flattened state
-  const [runPhase, setRunPhase] = useStickyState(GLOSSARY.system.phases.IDLE, 'app_runPhase');
-  const [runItems, setRunItems] = useStickyState([], 'app_runItems'); 
-  const [rolloverQueue, setRolloverQueue] = useStickyState([], 'app_rolloverQueue');
-  
-  // NEW: History & Time Databases
-  const [, setTimeLogs] = useStickyState([], 'app_timeLogs'); // Setter only to satisfy linter until UI is built
-  const [runHistory, setRunHistory] = useStickyState([], 'app_runHistory'); 
+  const [catalog, setCatalog] = useState([]);
+  const [locations, setLocations] = useState(GLOSSARY.locations); // Fallback to glossary
+  const [runPhase, setRunPhase] = useState(GLOSSARY.system.phases.IDLE);
+  const [runItems, setRunItems] = useState([]);
+  const [runHistory, setRunHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // LOGIC MECHANICS
-  const clockInDriver = () => {
-    setTimeLogs(prev => [...prev, { id: Date.now(), timestamp: new Date(), event: 'CLOCK_IN', driver: 'Driver_1' }]);
-    setRunPhase(GLOSSARY.system.phases.DRIVER_CLOCK_IN);
-  };
+  const fetchData = async () => {
+    try {
+      const { data: cat } = await supabase.from('catalog_items').select('*');
+      const { data: locs } = await supabase.from('locations').select('*, location_zones(*)');
+      const { data: activeRun } = await supabase.from('runs')
+        .select('*, run_items(*)')
+        .neq('phase', 'IDLE')
+        .limit(1)
+        .maybeSingle();
+      const { data: history } = await supabase.from('runs').select('*, run_items(*)').eq('phase', 'IDLE');
 
-  const upsertRunItem = (itemId, locId, qty, vendor) => {
-    setRunItems(prev => {
-      const existing = prev.find(i => i.itemId === itemId && i.locId === locId);
-      if (existing) {
-        return prev.map(i => i.id === existing.id ? { ...i, qty, vendor } : i).filter(i => i.qty > 0);
+      if (cat) setCatalog(cat);
+      if (locs && locs.length > 0) {
+        const locMap = {};
+        locs.forEach(l => { locMap[l.id] = { ...l, zones: l.location_zones }; });
+        setLocations(locMap);
       }
-      if (qty > 0) {
-        return [...prev, { id: Date.now().toString() + Math.random(), itemId, locId, qty, status: GLOSSARY.system.itemStatus.PENDING, vendor }];
+      if (activeRun) {
+        setRunPhase(activeRun.phase);
+        setRunItems(activeRun.run_items || []);
       }
-      return prev;
-    });
+      if (history) setRunHistory(history);
+    } catch (err) {
+      console.error("Fetch Error:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const updateItemStatus = (id, newStatus) => {
-    setRunItems(prev => prev.map(i => i.id === id ? { ...i, status: newStatus } : i));
+  useEffect(() => {
+    fetchData();
+    const channel = supabase.channel('realtime-logistics')
+      .on('postgres_changes', { event: '*', schema: 'public' }, fetchData)
+      .subscribe();
+    return () => supabase.removeChannel(channel);
+  }, []);
+
+  const upsertRunItem = async (itemId, locId, qty, vendor) => {
+    const { data: activeRun } = await supabase.from('runs').select('id').neq('phase', 'IDLE').maybeSingle();
+    let runId = activeRun?.id;
+
+    if (!runId) {
+      const { data: newRun } = await supabase.from('runs').insert([{ phase: 'PLANNING' }]).select().single();
+      runId = newRun.id;
+      setRunPhase('PLANNING');
+    }
+
+    await supabase.from('run_items').upsert({
+      run_id: runId,
+      item_id: itemId,
+      loc_id: locId,
+      qty: qty,
+      vendor: vendor,
+      status: 'PENDING'
+    }, { onConflict: 'run_id, item_id, loc_id' });
   };
 
-  const dispatchRun = (cardPickupLocId) => {
-    setRunItems(prev => [...prev, { id: 'card-chain', itemId: 'biz-card', locId: cardPickupLocId, qty: 1, status: GLOSSARY.system.itemStatus.CARD_TRANSFER, vendor: 'N/A' }]);
-    setRunPhase(GLOSSARY.system.phases.SHOPPING);
-  };
-  
-  const finishRun = () => {
-    const timestamp = new Date();
-    
-    const completedManifest = runItems.filter(i => i.itemId !== 'biz-card'); 
-    const historyEntry = {
-      id: Date.now(),
-      dispatchTime: runHistory.length > 0 ? runHistory[runHistory.length - 1].endTime : timestamp, 
-      endTime: timestamp,
-      itemsTotal: completedManifest.length,
-      unitsTotal: completedManifest.reduce((acc, curr) => acc + curr.qty, 0),
-      procuredUnits: completedManifest.filter(i => i.status === GLOSSARY.system.itemStatus.PROCURED || i.status === GLOSSARY.system.itemStatus.DELIVERED).reduce((acc, curr) => acc + curr.qty, 0),
-      skippedUnits: completedManifest.filter(i => i.status === GLOSSARY.system.itemStatus.SKIPPED).reduce((acc, curr) => acc + curr.qty, 0),
-      driver: 'Driver_1'
-    };
-    setRunHistory(prev => [historyEntry, ...prev]);
-
-    const skipped = runItems.filter(i => i.status === GLOSSARY.system.itemStatus.SKIPPED);
-    setRolloverQueue(prev => {
-      let nextQ = [...prev];
-      skipped.forEach(s => {
-        const existing = nextQ.find(q => q.itemId === s.itemId && q.locId === s.locId);
-        if (existing) existing.qty += s.qty;
-        else nextQ.push({ itemId: s.itemId, locId: s.locId, qty: s.qty, vendor: s.vendor });
-      });
-      return nextQ;
-    });
-
-    setTimeLogs(prev => [...prev, { id: Date.now() + 1, timestamp: new Date(), event: 'CLOCK_OUT', driver: 'Driver_1' }]);
-    setRunItems([]);
-    setRunPhase(GLOSSARY.system.phases.IDLE);
+  const dispatchRun = async (cardLocId) => {
+    const { data: activeRun } = await supabase.from('runs').select('id').neq('phase', 'IDLE').single();
+    await supabase.from('runs').update({ phase: 'SHOPPING', dispatch_time: new Date(), card_pickup_loc_id: cardLocId }).eq('id', activeRun.id);
+    await supabase.from('run_items').insert([{ run_id: activeRun.id, item_id: 'biz-card', loc_id: cardLocId, qty: 1, status: 'CARD_TRANSFER' }]);
   };
 
   if (!activeRole) return <Gatekeeper onUnlock={setActiveRole} />;
+  if (loading) return <div className="min-h-screen bg-zinc-950 flex items-center justify-center text-cyan-400 font-black uppercase">Loading Database...</div>;
 
   return (
-    <div className="min-h-screen bg-zinc-950 font-sans md:py-8 relative selection:bg-cyan-500/30">
-      <div className="max-w-md mx-auto bg-zinc-900 md:rounded-[2rem] md:shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-hidden border-x md:border-y border-zinc-800 min-h-screen md:min-h-[850px] flex flex-col relative">
+    <div className="min-h-screen bg-zinc-950 font-sans md:py-8">
+      <div className="max-w-md mx-auto bg-zinc-900 border-x border-zinc-800 min-h-screen flex flex-col relative overflow-hidden">
         <AppHeader role={activeRole} phase={runPhase} onLogout={() => setActiveRole(null)} />
-
-        <main className="flex-1 overflow-y-auto pb-24 scrollbar-hide relative h-full">
+        <main className="flex-1 overflow-y-auto pb-24 scrollbar-hide">
           {activeRole === 'admin' ? (
             <AdminCommandCenter 
-              catalog={catalog} setCatalog={setCatalog} 
+              catalog={catalog} locations={locations} setLocations={setLocations}
               runItems={runItems} upsertRunItem={upsertRunItem}
               runPhase={runPhase} setRunPhase={setRunPhase}
-              rolloverQueue={rolloverQueue} setRolloverQueue={setRolloverQueue}
-              dispatchRun={dispatchRun}
-              runHistory={runHistory}
+              dispatchRun={dispatchRun} runHistory={runHistory}
             />
           ) : (
             <DriverConsole 
-              catalog={catalog}
-              runItems={runItems}
-              runPhase={runPhase} setRunPhase={setRunPhase}
-              clockInDriver={clockInDriver}
-              updateItemStatus={updateItemStatus}
-              finishRun={finishRun}
+              catalog={catalog} runItems={runItems} runPhase={runPhase} 
+              updateItemStatus={(id, stat) => supabase.from('run_items').update({ status: stat }).eq('id', id)}
+              finishRun={(loc) => supabase.from('runs').update({ phase: 'IDLE', end_time: new Date(), card_dropoff_loc_id: loc }).neq('phase', 'IDLE')}
             />
           )}
         </main>
