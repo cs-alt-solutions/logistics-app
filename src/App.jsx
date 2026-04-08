@@ -8,7 +8,7 @@ import DriverConsole from './components/DriverConsole';
 export default function App() {
   const [activeRole, setActiveRole] = useState(null);
   const [catalog, setCatalog] = useState([]);
-  const [locations, setLocations] = useState(GLOSSARY.locations); // Fallback to glossary
+  const [locations, setLocations] = useState(GLOSSARY.locations);
   const [runPhase, setRunPhase] = useState(GLOSSARY.system.phases.IDLE);
   const [runItems, setRunItems] = useState([]);
   const [runHistory, setRunHistory] = useState([]);
@@ -69,12 +69,38 @@ export default function App() {
       vendor: vendor,
       status: 'PENDING'
     }, { onConflict: 'run_id, item_id, loc_id' });
+    
+    await fetchData(); 
   };
 
   const dispatchRun = async (cardLocId) => {
     const { data: activeRun } = await supabase.from('runs').select('id').neq('phase', 'IDLE').single();
     await supabase.from('runs').update({ phase: 'SHOPPING', dispatch_time: new Date(), card_pickup_loc_id: cardLocId }).eq('id', activeRun.id);
     await supabase.from('run_items').insert([{ run_id: activeRun.id, item_id: 'biz-card', loc_id: cardLocId, qty: 1, status: 'CARD_TRANSFER' }]);
+    await fetchData();
+  };
+
+  const updateCatalogItem = async (item) => {
+    await supabase.from('catalog_items').update({
+      name: item.name,
+      unit: item.unit,
+      preferred_vendor: item.preferred_vendor,
+      is_favorite: item.is_favorite
+    }).eq('id', item.id);
+    await fetchData();
+  };
+
+  // NEW FUNCTION: Add a brand new item to the master catalog
+  const addCatalogItem = async (newItem) => {
+    const newId = `item-${Date.now()}`;
+    await supabase.from('catalog_items').insert([{
+      id: newId,
+      name: newItem.name,
+      unit: newItem.unit,
+      preferred_vendor: newItem.preferred_vendor,
+      is_favorite: newItem.is_favorite
+    }]);
+    await fetchData();
   };
 
   if (!activeRole) return <Gatekeeper onUnlock={setActiveRole} />;
@@ -91,12 +117,19 @@ export default function App() {
               runItems={runItems} upsertRunItem={upsertRunItem}
               runPhase={runPhase} setRunPhase={setRunPhase}
               dispatchRun={dispatchRun} runHistory={runHistory}
+              updateCatalogItem={updateCatalogItem} addCatalogItem={addCatalogItem}
             />
           ) : (
             <DriverConsole 
               catalog={catalog} runItems={runItems} runPhase={runPhase} 
-              updateItemStatus={(id, stat) => supabase.from('run_items').update({ status: stat }).eq('id', id)}
-              finishRun={(loc) => supabase.from('runs').update({ phase: 'IDLE', end_time: new Date(), card_dropoff_loc_id: loc }).neq('phase', 'IDLE')}
+              updateItemStatus={async (id, stat) => {
+                await supabase.from('run_items').update({ status: stat }).eq('id', id);
+                await fetchData();
+              }}
+              finishRun={async (loc) => {
+                await supabase.from('runs').update({ phase: 'IDLE', end_time: new Date(), card_dropoff_loc_id: loc }).neq('phase', 'IDLE');
+                await fetchData();
+              }}
             />
           )}
         </main>

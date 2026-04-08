@@ -1,17 +1,17 @@
 import React, { useState } from 'react';
 import { GLOSSARY } from '../glossary';
-import { Send, Activity, CheckCircle, Clock, Database, MapPin, CheckSquare, ChevronDown, CreditCard } from 'lucide-react';
+import { Send, Activity, Database, MapPin, CheckSquare, Plus, Minus } from 'lucide-react';
 import AdminAssetInjector from './AdminAssetInjector';
-import { EditItemModal } from './Modals';
+import { EditItemModal, AddItemModal } from './Modals';
 
-export default function AdminCommandCenter({ catalog, setCatalog, locations, setLocations, runItems, upsertRunItem, runPhase, setRunPhase, dispatchRun, runHistory }) {
+export default function AdminCommandCenter({ catalog, locations, runItems, upsertRunItem, runPhase, setRunPhase, dispatchRun, runHistory, updateCatalogItem, addCatalogItem }) {
   const [activeLocKey, setActiveLocKey] = useState(Object.keys(GLOSSARY.locations)[0]);
   const [editingItem, setEditingItem] = useState(null);
+  const [isAddingItem, setIsAddingItem] = useState(false);
   const [viewHistory, setViewHistory] = useState(false);
   const [cardLocId, setCardLocId] = useState("");
 
   const isRunActive = runPhase === GLOSSARY.system.phases.SHOPPING || runPhase === GLOSSARY.system.phases.DELIVERING;
-
   const activeLocation = activeLocKey === 'tracker' ? null : locations[activeLocKey];
   const activeLocRunItems = activeLocation ? runItems.filter(i => i.loc_id === activeLocation.id && i.qty > 0 && i.item_id !== 'biz-card') : [];
   const totalItems = runItems.reduce((acc, curr) => curr.item_id !== 'biz-card' ? acc + curr.qty : acc, 0);
@@ -34,7 +34,18 @@ export default function AdminCommandCenter({ catalog, setCatalog, locations, set
   return (
     <div className="flex flex-col h-full animate-in fade-in pb-24 relative">
       {editingItem && (
-        <EditItemModal item={editingItem} onSave={() => setEditingItem(null)} onClose={() => setEditingItem(null)} />
+        <EditItemModal 
+          item={editingItem} 
+          onSave={(updated) => { updateCatalogItem(updated); setEditingItem(null); }} 
+          onClose={() => setEditingItem(null)} 
+        />
+      )}
+
+      {isAddingItem && (
+        <AddItemModal 
+          onSave={(newItem) => { addCatalogItem(newItem); setIsAddingItem(false); }} 
+          onClose={() => setIsAddingItem(false)} 
+        />
       )}
 
       {isRunActive && (
@@ -95,10 +106,10 @@ export default function AdminCommandCenter({ catalog, setCatalog, locations, set
               {activeLocation && (
                 <div className="px-4 py-3">
                   <AdminAssetInjector 
-                    catalog={catalog} setCatalog={setCatalog} 
-                    locations={locations} setLocations={setLocations}
+                    catalog={catalog}
                     activeLocation={activeLocation} activeLocRunItems={activeLocRunItems}
                     upsertRunItem={upsertRunItem} runPhase={runPhase} setRunPhase={setRunPhase}
+                    setEditingItem={setEditingItem} setIsAddingItem={setIsAddingItem}
                   />
                 </div>
               )}

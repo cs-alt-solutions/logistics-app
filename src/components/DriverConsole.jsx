@@ -39,8 +39,6 @@ export default function DriverConsole({ catalog, runItems, runPhase, setRunPhase
   const [activeVendor, setActiveVendor] = useState(GLOSSARY.vendors[0]);
   const [now, setNow] = useState(new Date());
   const [shiftStart, setShiftStart] = useStickyState(null, 'app_driverShiftStart');
-  
-  // State for the final step
   const [finalCardLocId, setFinalCardLocId] = useState("");
 
   useEffect(() => {
@@ -56,11 +54,10 @@ export default function DriverConsole({ catalog, runItems, runPhase, setRunPhase
   const handleCompleteRun = () => {
     if (!finalCardLocId) return;
     setShiftStart(null); 
-    setFinalCardLocId(""); // Reset for next run
+    setFinalCardLocId(""); 
     finishRun(finalCardLocId);
   };
 
-  // Helper for delivery phase
   const handleLocationDelivered = (locItems) => {
     locItems.forEach(item => updateItemStatus(item.id, GLOSSARY.system.itemStatus.DELIVERED));
   };
@@ -104,10 +101,10 @@ export default function DriverConsole({ catalog, runItems, runPhase, setRunPhase
   }
 
   if (runPhase === GLOSSARY.system.phases.SHOPPING) {
-    const pendingItems = runItems.filter(i => i.status === GLOSSARY.system.itemStatus.PENDING && i.itemId !== 'biz-card');
+    const pendingItems = runItems.filter(i => i.status === GLOSSARY.system.itemStatus.PENDING && i.item_id !== 'biz-card');
     const pendingTotal = pendingItems.length;
-    const cardTransfer = runItems.find(i => i.itemId === 'biz-card');
-    const cardLoc = Object.values(GLOSSARY.locations).find(l => l.id === cardTransfer?.locId);
+    const cardTransfer = runItems.find(i => i.item_id === 'biz-card');
+    const cardLoc = Object.values(GLOSSARY.locations).find(l => l.id === cardTransfer?.loc_id);
 
     return (
       <div className="flex flex-col h-full animate-in fade-in relative">
@@ -144,15 +141,15 @@ export default function DriverConsole({ catalog, runItems, runPhase, setRunPhase
           ) : (
             <div className="space-y-2.5">
               {pendingItems.map(item => {
-                const catItem = catalog.find(c => c.id === item.itemId);
-                const loc = Object.values(GLOSSARY.locations).find(l => l.id === item.locId);
+                const catItem = catalog.find(c => c.id === item.item_id);
+                const loc = Object.values(GLOSSARY.locations).find(l => l.id === item.loc_id);
                 return (
                   <div key={item.id} className="bg-zinc-800 border border-zinc-700 rounded-xl p-3.5 shadow-sm flex items-center justify-between transition-all group active:scale-[0.98]">
                     <div className="flex-1 pr-3 space-y-1">
                       <h3 className="font-bold text-zinc-100 text-base leading-tight">{catItem?.name}</h3>
                       <div className="flex items-center gap-2 flex-wrap pt-0.5">
                         <span className="font-black text-cyan-400 text-xs px-2 py-1 bg-cyan-950/40 rounded border border-cyan-500/30 tabular-nums">{item.qty} {catItem?.unit}</span>
-                        <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">{catItem?.preferredVendor}</span>
+                        <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">{catItem?.preferred_vendor}</span>
                         <span className={`text-[9px] font-black uppercase px-2 py-1 rounded border ${loc?.theme.bgLight} ${loc?.theme.border} ${loc?.theme.text}`}>{loc?.name}</span>
                       </div>
                     </div>
@@ -176,11 +173,9 @@ export default function DriverConsole({ catalog, runItems, runPhase, setRunPhase
     );
   }
 
-  // DELIVERY PHASE
   if (runPhase === GLOSSARY.system.phases.DELIVERING) {
-    const allDeliveryItems = runItems.filter(i => (i.status === GLOSSARY.system.itemStatus.PROCURED || i.status === GLOSSARY.system.itemStatus.DELIVERED) && i.itemId !== 'biz-card');
+    const allDeliveryItems = runItems.filter(i => (i.status === GLOSSARY.system.itemStatus.PROCURED || i.status === GLOSSARY.system.itemStatus.DELIVERED) && i.item_id !== 'biz-card');
     
-    // Check if every item has been marked DELIVERED
     const isAllDroppedOff = allDeliveryItems.length > 0 && allDeliveryItems.every(i => i.status === GLOSSARY.system.itemStatus.DELIVERED);
 
     return (
@@ -191,7 +186,7 @@ export default function DriverConsole({ catalog, runItems, runPhase, setRunPhase
            <h2 className="text-xl font-black text-cyan-400 uppercase tracking-widest mt-2">Route Drop-offs</h2>
            
            {Object.values(GLOSSARY.locations).map(loc => {
-             const locItems = allDeliveryItems.filter(i => i.locId === loc.id);
+             const locItems = allDeliveryItems.filter(i => i.loc_id === loc.id);
              if (locItems.length === 0) return null;
              
              const isLocComplete = locItems.every(i => i.status === GLOSSARY.system.itemStatus.DELIVERED);
@@ -206,7 +201,7 @@ export default function DriverConsole({ catalog, runItems, runPhase, setRunPhase
                  
                  <div className="p-2.5 space-y-0.5">
                    {locItems.map(item => {
-                     const catItem = catalog.find(c => c.id === item.itemId);
+                     const catItem = catalog.find(c => c.id === item.item_id);
                      return (
                        <div key={item.id} className={`flex items-center justify-between p-2.5 border-b border-zinc-700/30 last:border-0 ${isLocComplete ? 'opacity-50' : ''}`}>
                          <span className="font-bold text-zinc-200 text-sm">{catItem?.name}</span>
@@ -227,7 +222,6 @@ export default function DriverConsole({ catalog, runItems, runPhase, setRunPhase
              );
            })}
 
-           {/* FINAL CARD DROP-OFF (Only appears when all locations are checked off) */}
            {isAllDroppedOff && (
              <div className="bg-amber-950/20 border border-amber-900/50 p-4 rounded-2xl animate-in slide-in-from-bottom-4 space-y-3 shadow-lg mt-8">
                <div className="flex items-center gap-3 text-amber-400 mb-2">
