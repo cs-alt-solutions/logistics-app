@@ -23,7 +23,9 @@ export const GLOSSARY = {
       PROCURED: 'PROCURED',
       DELIVERED: 'DELIVERED',
       SKIPPED: 'SKIPPED',
-      CARD_TRANSFER: 'CARD_TRANSFER' 
+      CARD_TRANSFER: 'CARD_TRANSFER',
+      DISMISSED: 'DISMISSED',      // NEW: Added for backorder clearing
+      ROLLED_OVER: 'ROLLED_OVER' 
     }
   },
   vendors: [

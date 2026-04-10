@@ -35,7 +35,7 @@ const ShiftBanner = ({ shiftStart }) => {
   );
 };
 
-export default function DriverConsole({ catalog, runItems, runPhase, setRunPhase, clockInDriver, updateItemStatus, finishRun }) {
+export default function DriverConsole({ catalog, runItems, runPhase, setRunPhase, clockInDriver, updateItemStatus, updateLocationItemsStatus, finishRun }) {
   const [activeVendor, setActiveVendor] = useState(GLOSSARY.vendors[0]);
   const [now, setNow] = useState(new Date());
   const [shiftStart, setShiftStart] = useStickyState(null, 'app_driverShiftStart');
@@ -58,8 +58,11 @@ export default function DriverConsole({ catalog, runItems, runPhase, setRunPhase
     finishRun(finalCardLocId);
   };
 
-  const handleLocationDelivered = (locItems) => {
-    locItems.forEach(item => updateItemStatus(item.id, GLOSSARY.system.itemStatus.DELIVERED));
+  // NEW: Executes a bulk optimistic update instead of looping single requests
+  const handleLocationDelivered = (locId) => {
+    if (updateLocationItemsStatus) {
+       updateLocationItemsStatus(locId, GLOSSARY.system.itemStatus.DELIVERED);
+    }
   };
 
   if (runPhase === GLOSSARY.system.phases.IDLE) {
@@ -213,7 +216,7 @@ export default function DriverConsole({ catalog, runItems, runPhase, setRunPhase
 
                  {!isLocComplete && (
                    <div className="p-3 bg-zinc-900/80 border-t border-zinc-700">
-                     <button onClick={() => handleLocationDelivered(locItems)} className="w-full bg-zinc-800 hover:bg-emerald-500/20 text-zinc-300 hover:text-emerald-400 border border-zinc-700 hover:border-emerald-500/50 font-black uppercase text-xs py-3 rounded-xl transition-all flex items-center justify-center gap-2">
+                     <button onClick={() => handleLocationDelivered(loc.id)} className="w-full bg-zinc-800 hover:bg-emerald-500/20 text-zinc-300 hover:text-emerald-400 border border-zinc-700 hover:border-emerald-500/50 font-black uppercase text-xs py-3 rounded-xl transition-all flex items-center justify-center gap-2">
                        <MapPin size={14} /> Mark {loc.name} Dropped Off
                      </button>
                    </div>

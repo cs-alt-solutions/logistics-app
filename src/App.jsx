@@ -12,18 +12,22 @@ export default function App() {
   const [runPhase, setRunPhase] = useState(GLOSSARY.system.phases.IDLE);
   const [runItems, setRunItems] = useState([]);
   const [runHistory, setRunHistory] = useState([]);
+  const [backorders, setBackorders] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const fetchData = async () => {
     try {
       const { data: cat } = await supabase.from('catalog_items').select('*');
       const { data: locs } = await supabase.from('locations').select('*, location_zones(*)');
+      
       const { data: activeRun } = await supabase.from('runs')
         .select('*, run_items(*)')
         .neq('phase', 'IDLE')
         .limit(1)
         .maybeSingle();
-      const { data: history } = await supabase.from('runs').select('*, run_items(*)').eq('phase', 'IDLE');
+        
+      const { data: history } = await supabase.from('runs').select('*, run_items(*)').eq('phase', 'IDLE').order('end_time', { ascending: false });
+      const { data: skippedItems } = await supabase.from('run_items').select('*').eq('status', GLOSSARY.system.itemStatus.SKIPPED);
 
       if (cat) setCatalog(cat);
       if (locs && locs.length > 0) {
@@ -31,11 +35,18 @@ export default function App() {
         locs.forEach(l => { locMap[l.id] = { ...l, zones: l.location_zones }; });
         setLocations(locMap);
       }
+      
       if (activeRun) {
         setRunPhase(activeRun.phase);
         setRunItems(activeRun.run_items || []);
+      } else {
+        setRunPhase(GLOSSARY.system.phases.IDLE);
+        setRunItems([]);
       }
+      
       if (history) setRunHistory(history);
+      if (skippedItems) setBackorders(skippedItems);
+
     } catch (err) {
       console.error("Fetch Error:", err);
     } finally {
@@ -73,6 +84,16 @@ export default function App() {
     await fetchData(); 
   };
 
+  const resolveBackorder = async (backorderItem, action) => {
+    if (action === 'DISMISS') {
+      await supabase.from('run_items').update({ status: GLOSSARY.system.itemStatus.DISMISSED }).eq('id', backorderItem.id);
+    } else if (action === 'ROLLOVER') {
+      await upsertRunItem(backorderItem.item_id, backorderItem.loc_id, backorderItem.qty, backorderItem.vendor);
+      await supabase.from('run_items').update({ status: GLOSSARY.system.itemStatus.ROLLED_OVER }).eq('id', backorderItem.id);
+    }
+    await fetchData();
+  };
+
   const dispatchRun = async (cardLocId) => {
     const { data: activeRun } = await supabase.from('runs').select('id').neq('phase', 'IDLE').single();
     await supabase.from('runs').update({ phase: 'SHOPPING', dispatch_time: new Date(), card_pickup_loc_id: cardLocId }).eq('id', activeRun.id);
@@ -81,24 +102,27 @@ export default function App() {
   };
 
   const updateCatalogItem = async (item) => {
-    await supabase.from('catalog_items').update({
-      name: item.name,
-      unit: item.unit,
-      preferred_vendor: item.preferred_vendor,
-      is_favorite: item.is_favorite
+    await supabase.from('catalog_items').update({ 
+      name: item.name, 
+      unit: item.unit, 
+      preferred_vendor: item.preferred_vendor, 
+      is_favorite: item.is_favorite,
+      category: item.category,
+      excluded_locations: item.excluded_locations || []
     }).eq('id', item.id);
     await fetchData();
   };
 
-  // NEW FUNCTION: Add a brand new item to the master catalog
   const addCatalogItem = async (newItem) => {
     const newId = `item-${Date.now()}`;
-    await supabase.from('catalog_items').insert([{
-      id: newId,
-      name: newItem.name,
-      unit: newItem.unit,
-      preferred_vendor: newItem.preferred_vendor,
-      is_favorite: newItem.is_favorite
+    await supabase.from('catalog_items').insert([{ 
+      id: newId, 
+      name: newItem.name, 
+      unit: newItem.unit, 
+      preferred_vendor: newItem.preferred_vendor, 
+      is_favorite: newItem.is_favorite,
+      category: newItem.category,
+      excluded_locations: newItem.excluded_locations || []
     }]);
     await fetchData();
   };
@@ -118,15 +142,41 @@ export default function App() {
               runPhase={runPhase} setRunPhase={setRunPhase}
               dispatchRun={dispatchRun} runHistory={runHistory}
               updateCatalogItem={updateCatalogItem} addCatalogItem={addCatalogItem}
+              backorders={backorders} resolveBackorder={resolveBackorder} 
+              refreshData={fetchData} // <--- The master UI refresh pipeline
             />
           ) : (
             <DriverConsole 
               catalog={catalog} runItems={runItems} runPhase={runPhase} 
-              updateItemStatus={async (id, stat) => {
-                await supabase.from('run_items').update({ status: stat }).eq('id', id);
+              setRunPhase={async (newPhase) => {
+                setRunPhase(newPhase); 
+                const { data: activeRun } = await supabase.from('runs').select('id').neq('phase', 'IDLE').maybeSingle();
+                if (activeRun) {
+                  await supabase.from('runs').update({ phase: newPhase }).eq('id', activeRun.id);
+                  await fetchData();
+                }
+              }}
+              clockInDriver={async () => {
+                setRunPhase(GLOSSARY.system.phases.DRIVER_CLOCK_IN); 
+                const { data: activeRun } = await supabase.from('runs').select('id').neq('phase', 'IDLE').maybeSingle();
+                if (!activeRun) { await supabase.from('runs').insert([{ phase: GLOSSARY.system.phases.DRIVER_CLOCK_IN }]); } 
+                else { await supabase.from('runs').update({ phase: GLOSSARY.system.phases.DRIVER_CLOCK_IN }).eq('id', activeRun.id); }
                 await fetchData();
               }}
+              updateItemStatus={async (id, stat) => {
+                setRunItems(prev => prev.map(i => i.id === id ? { ...i, status: stat } : i));
+                await supabase.from('run_items').update({ status: stat }).eq('id', id);
+                await fetchData(); 
+              }}
+              updateLocationItemsStatus={async (locId, stat) => {
+                setRunItems(prev => prev.map(i => i.loc_id === locId && i.item_id !== 'biz-card' ? { ...i, status: stat } : i));
+                const ids = runItems.filter(i => i.loc_id === locId && i.item_id !== 'biz-card').map(i => i.id);
+                if (ids.length > 0) { await supabase.from('run_items').update({ status: stat }).in('id', ids); }
+                await fetchData(); 
+              }}
               finishRun={async (loc) => {
+                setRunPhase(GLOSSARY.system.phases.IDLE);
+                setRunItems([]);
                 await supabase.from('runs').update({ phase: 'IDLE', end_time: new Date(), card_dropoff_loc_id: loc }).neq('phase', 'IDLE');
                 await fetchData();
               }}

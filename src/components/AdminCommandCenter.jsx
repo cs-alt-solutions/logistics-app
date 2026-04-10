@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { GLOSSARY } from '../glossary';
-import { Send, Activity, Database, MapPin, CheckSquare, Plus, Minus } from 'lucide-react';
+import { Send, Activity, Database, MapPin, Plus, Minus, ClipboardList, PackageCheck } from 'lucide-react';
 import AdminAssetInjector from './AdminAssetInjector';
 import { EditItemModal, AddItemModal } from './Modals';
+import BackorderAlert from './BackorderAlert';
+import RunHistory from './RunHistory';
 
-export default function AdminCommandCenter({ catalog, locations, runItems, upsertRunItem, runPhase, setRunPhase, dispatchRun, runHistory, updateCatalogItem, addCatalogItem }) {
+export default function AdminCommandCenter({ catalog, locations, runItems, upsertRunItem, runPhase, dispatchRun, runHistory, updateCatalogItem, addCatalogItem, backorders, resolveBackorder, refreshData }) {
   const [activeLocKey, setActiveLocKey] = useState(Object.keys(GLOSSARY.locations)[0]);
   const [editingItem, setEditingItem] = useState(null);
   const [isAddingItem, setIsAddingItem] = useState(false);
@@ -33,24 +35,12 @@ export default function AdminCommandCenter({ catalog, locations, runItems, upser
 
   return (
     <div className="flex flex-col h-full animate-in fade-in pb-24 relative">
-      {editingItem && (
-        <EditItemModal 
-          item={editingItem} 
-          onSave={(updated) => { updateCatalogItem(updated); setEditingItem(null); }} 
-          onClose={() => setEditingItem(null)} 
-        />
-      )}
-
-      {isAddingItem && (
-        <AddItemModal 
-          onSave={(newItem) => { addCatalogItem(newItem); setIsAddingItem(false); }} 
-          onClose={() => setIsAddingItem(false)} 
-        />
-      )}
+      {editingItem && <EditItemModal item={editingItem} onSave={(updated) => { updateCatalogItem(updated); setEditingItem(null); }} onClose={() => setEditingItem(null)} />}
+      {isAddingItem && <AddItemModal onSave={(newItem) => { addCatalogItem(newItem); setIsAddingItem(false); }} onClose={() => setIsAddingItem(false)} />}
 
       {isRunActive && (
         <div className="bg-cyan-500/20 border-b border-cyan-500/50 p-3 flex items-center justify-center gap-2 text-cyan-400 font-black text-xs uppercase tracking-widest shadow-inner sticky top-0 z-30 backdrop-blur-md">
-          <Activity size={16} className="animate-pulse" /> Live Tracker Active
+          <Activity size={16} className="animate-pulse" /> Live Manifest Active
         </div>
       )}
 
@@ -61,30 +51,12 @@ export default function AdminCommandCenter({ catalog, locations, runItems, upser
       </div>
 
       {viewHistory ? (
-          <div className="p-4 flex-1 space-y-4 animate-in slide-in-from-top-4">
-              <h2 className="text-xl font-black text-amber-400 uppercase tracking-tight flex items-center gap-2 mb-6"><CheckSquare size={20}/> Completed Run History</h2>
-              {runHistory?.length === 0 ? (
-                  <div className="text-center py-12 border-2 border-dashed border-zinc-800 rounded-2xl bg-zinc-900/50">
-                    <Database size={32} className="text-zinc-700 mx-auto mb-3" />
-                    <p className="text-zinc-500 font-bold">No runs recorded in history database yet.</p>
-                  </div>
-              ) : (
-                  runHistory.map(run => (
-                    <div key={run.id} className="bg-zinc-900 border border-zinc-800 rounded-xl shadow-md overflow-hidden transition-all">
-                        <div className="p-4 flex flex-col gap-3">
-                            <div className="flex justify-between items-center border-b border-zinc-800 pb-2">
-                                <span className="text-zinc-100 font-black text-lg">Completed Run</span>
-                                <span className="text-zinc-600 font-bold text-xs">{new Date(run.end_time).toLocaleDateString()}</span>
-                            </div>
-                            <p className="text-xs font-bold text-zinc-400">Dispatch: {new Date(run.dispatch_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit'})}</p>
-                        </div>
-                    </div>
-                  ))
-              )}
-          </div>
+          <RunHistory runHistory={runHistory} />
       ) : (
         <>
-            <div className="sticky top-[58px] z-20 bg-zinc-950/95 backdrop-blur-md border-b border-zinc-800 shadow-xl">
+            {!isRunActive && <BackorderAlert backorders={backorders} catalog={catalog} locations={locations} onResolve={resolveBackorder} />}
+
+            <div className={`sticky ${isRunActive ? 'top-[58px]' : 'top-0'} z-20 bg-zinc-950/95 backdrop-blur-md border-b border-zinc-800 shadow-xl mt-2`}>
               <div className="flex overflow-x-auto snap-x scrollbar-hide gap-2 px-3 py-3 border-b border-zinc-800/50">
                 {isRunActive && (
                   <button onClick={() => setActiveLocKey('tracker')} className={`snap-start shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl font-black text-xs uppercase transition-all border ${activeLocKey === 'tracker' ? 'bg-cyan-950/40 border-cyan-500/50 text-cyan-400' : 'bg-zinc-900 border-zinc-800 text-zinc-500'}`}>
@@ -108,8 +80,10 @@ export default function AdminCommandCenter({ catalog, locations, runItems, upser
                   <AdminAssetInjector 
                     catalog={catalog}
                     activeLocation={activeLocation} activeLocRunItems={activeLocRunItems}
-                    upsertRunItem={upsertRunItem} runPhase={runPhase} setRunPhase={setRunPhase}
+                    upsertRunItem={upsertRunItem}
                     setEditingItem={setEditingItem} setIsAddingItem={setIsAddingItem}
+                    updateCatalogItem={updateCatalogItem} 
+                    refreshData={refreshData}
                   />
                 </div>
               )}
@@ -120,7 +94,7 @@ export default function AdminCommandCenter({ catalog, locations, runItems, upser
                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
                   <div className="bg-zinc-900 border border-zinc-800 p-5 rounded-2xl shadow-lg">
                     <div className="flex justify-between items-end mb-3">
-                      <h3 className="font-black text-zinc-400 uppercase tracking-widest text-xs">Run Progress</h3>
+                      <h3 className="font-black text-zinc-400 uppercase tracking-widest text-xs">Fulfillment Progress</h3>
                       <span className="text-cyan-400 font-black text-xl leading-none">{progress}%</span>
                     </div>
                     <div className="w-full bg-zinc-950 h-4 rounded-full overflow-hidden border border-zinc-800 shadow-inner">
@@ -135,19 +109,19 @@ export default function AdminCommandCenter({ catalog, locations, runItems, upser
               ) : (
                 <section className="animate-in fade-in">
                   <h2 className="text-sm font-black text-zinc-500 tracking-widest uppercase mb-4 flex items-center gap-2">
-                    Active Payload <span className="text-emerald-400">• {activeLocation?.name}</span>
+                    <ClipboardList size={16} className="text-zinc-500" /> Staged Order <span className="text-emerald-400">• {activeLocation?.name}</span>
                   </h2>
                   
                   {activeLocRunItems.length === 0 ? (
                     <div className="text-center py-12 border-2 border-dashed border-zinc-800 rounded-2xl bg-zinc-900/50">
-                      <p className="text-zinc-500 font-bold text-sm">No items queued for this location.</p>
+                      <p className="text-zinc-500 font-bold text-sm">No items staged for this location's order.</p>
                     </div>
                   ) : (
                     <div className="space-y-3">
                       {activeLocRunItems.map(runItem => {
                         const item = catalog.find(c => c.id === runItem.item_id);
                         return (
-                          <div key={runItem.id} className="p-4 rounded-2xl border border-zinc-700 bg-zinc-800 flex items-center justify-between shadow-md transition-all group">
+                          <div key={runItem.id} className="p-4 rounded-2xl border border-zinc-700 bg-zinc-800 flex items-center justify-between shadow-md transition-all group hover:border-zinc-500">
                             <div className="flex-1 pr-2">
                               <h3 className="font-bold text-zinc-100 leading-tight">{item?.name}</h3>
                               <span className="text-[10px] font-black text-cyan-400 bg-cyan-950/40 border border-cyan-500/50 px-2 py-0.5 rounded uppercase mt-1.5 inline-block">{item?.unit}</span>
@@ -178,8 +152,8 @@ export default function AdminCommandCenter({ catalog, locations, runItems, upser
                             </select>
                         </div>
                     </div>
-                    <button onClick={() => dispatchRun(cardLocId)} disabled={!cardLocId} className={`w-full font-black uppercase py-4 rounded-xl flex items-center justify-center gap-2 transition-all ${cardLocId ? 'bg-cyan-500 text-zinc-950' : 'bg-zinc-800 text-zinc-600 border border-zinc-700'}`}>
-                        <Send size={20} /> Dispatch Driver ({totalItems} Items)
+                    <button onClick={() => dispatchRun(cardLocId)} disabled={!cardLocId} className={`w-full font-black uppercase py-4 rounded-xl flex items-center justify-center gap-2 transition-all ${cardLocId ? 'bg-cyan-500 text-zinc-950 shadow-[0_0_20px_rgba(34,211,238,0.3)]' : 'bg-zinc-800 text-zinc-600 border border-zinc-700'}`}>
+                        <PackageCheck size={20} /> Approve & Dispatch Manifest ({totalItems} Items)
                     </button>
                 </div>
             )}

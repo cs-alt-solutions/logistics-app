@@ -12,8 +12,8 @@ export const EditItemModal = ({ item, onSave, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-zinc-950/80 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-      <div className="bg-zinc-900 border border-zinc-700 rounded-[2rem] p-6 w-full max-w-sm shadow-[0_0_40px_rgba(0,0,0,0.8)] animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 bg-zinc-950/80 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in duration-200 overflow-y-auto">
+      <div className="bg-zinc-900 border border-zinc-700 rounded-[2rem] p-6 w-full max-w-sm shadow-[0_0_40px_rgba(0,0,0,0.8)] animate-in zoom-in-95 duration-200 my-auto">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3 text-cyan-400">
             <Edit2 size={24} className="drop-shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
@@ -31,9 +31,15 @@ export const EditItemModal = ({ item, onSave, onClose }) => {
           </div>
           <input type="text" className="w-full p-3 rounded-xl border border-zinc-700 bg-zinc-950 focus:outline-none focus:ring-2 focus:ring-cyan-500 font-bold text-zinc-100 transition-shadow shadow-inner" value={editedItem.name} onChange={(e) => setEditedItem({ ...editedItem, name: e.target.value })} />
           
-          <div>
-            <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1 mb-1 block">Unit of Measure</label>
-            <input type="text" className="w-full p-3 rounded-xl border border-zinc-700 bg-zinc-950 focus:outline-none focus:ring-2 focus:ring-cyan-500 font-bold text-zinc-100 transition-shadow shadow-inner" value={editedItem.unit} onChange={(e) => setEditedItem({ ...editedItem, unit: e.target.value })} />
+          <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1 mb-1 block">Unit of Measure</label>
+                <input type="text" className="w-full p-3 rounded-xl border border-zinc-700 bg-zinc-950 focus:outline-none focus:ring-2 focus:ring-cyan-500 font-bold text-zinc-100 transition-shadow shadow-inner" value={editedItem.unit} onChange={(e) => setEditedItem({ ...editedItem, unit: e.target.value })} />
+              </div>
+              <div>
+                <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1 mb-1 block">Category</label>
+                <input type="text" placeholder="e.g. Meat" className="w-full p-3 rounded-xl border border-zinc-700 bg-zinc-950 focus:outline-none focus:ring-2 focus:ring-cyan-500 font-bold text-zinc-100 transition-shadow shadow-inner" value={editedItem.category || ''} onChange={(e) => setEditedItem({ ...editedItem, category: e.target.value })} />
+              </div>
           </div>
           
           <div>
@@ -42,6 +48,31 @@ export const EditItemModal = ({ item, onSave, onClose }) => {
               <option value="">Select Primary Vendor...</option>
               {GLOSSARY.vendors.map(v => <option key={v} value={v}>{v}</option>)}
             </select>
+          </div>
+
+          <div className="pt-2">
+            <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1 mb-2 block">Visible At Locations (Uncheck to hide)</label>
+            <div className="grid grid-cols-2 gap-2">
+              {Object.values(GLOSSARY.locations).map(loc => {
+                  const isHidden = (editedItem.excluded_locations || []).includes(loc.id);
+                  return (
+                      <label key={loc.id} className="flex items-center gap-2 text-xs font-bold text-zinc-300 bg-zinc-950 p-2 rounded-lg border border-zinc-800 cursor-pointer hover:border-cyan-500/30 transition-colors">
+                          <input
+                            type="checkbox"
+                            checked={!isHidden}
+                            onChange={(e) => {
+                                const newExclusions = e.target.checked
+                                  ? (editedItem.excluded_locations || []).filter(id => id !== loc.id)
+                                  : [...(editedItem.excluded_locations || []), loc.id];
+                                setEditedItem({...editedItem, excluded_locations: newExclusions});
+                            }}
+                            className="w-4 h-4 rounded bg-zinc-900 border-zinc-700 text-cyan-500 focus:ring-cyan-500 focus:ring-offset-zinc-950"
+                          />
+                          <span className="truncate">{loc.name}</span>
+                      </label>
+                  )
+              })}
+            </div>
           </div>
           
           <div className="flex gap-3 pt-4 border-t border-zinc-800 mt-6">
@@ -55,7 +86,7 @@ export const EditItemModal = ({ item, onSave, onClose }) => {
 };
 
 export const AddItemModal = ({ onSave, onClose }) => {
-  const [newItem, setNewItem] = useState({ name: '', unit: 'Each', preferred_vendor: GLOSSARY.defaultVendor, is_favorite: false });
+  const [newItem, setNewItem] = useState({ name: '', unit: 'Each', category: 'General', preferred_vendor: GLOSSARY.defaultVendor, is_favorite: false, excluded_locations: [] });
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -64,8 +95,8 @@ export const AddItemModal = ({ onSave, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-zinc-950/80 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-      <div className="bg-zinc-900 border border-zinc-700 rounded-[2rem] p-6 w-full max-w-sm shadow-[0_0_40px_rgba(0,0,0,0.8)] animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 bg-zinc-950/80 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in duration-200 overflow-y-auto">
+      <div className="bg-zinc-900 border border-zinc-700 rounded-[2rem] p-6 w-full max-w-sm shadow-[0_0_40px_rgba(0,0,0,0.8)] animate-in zoom-in-95 duration-200 my-auto">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3 text-emerald-400">
             <Plus size={24} className="drop-shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
@@ -83,9 +114,15 @@ export const AddItemModal = ({ onSave, onClose }) => {
           </div>
           <input type="text" placeholder="e.g. Paper Towels" className="w-full p-3 rounded-xl border border-zinc-700 bg-zinc-950 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold text-zinc-100 transition-shadow shadow-inner" value={newItem.name} onChange={(e) => setNewItem({ ...newItem, name: e.target.value })} autoFocus />
           
-          <div>
-            <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1 mb-1 block">Unit of Measure</label>
-            <input type="text" placeholder="e.g. Case, 12-Pack, Each" className="w-full p-3 rounded-xl border border-zinc-700 bg-zinc-950 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold text-zinc-100 transition-shadow shadow-inner" value={newItem.unit} onChange={(e) => setNewItem({ ...newItem, unit: e.target.value })} />
+          <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1 mb-1 block">Unit of Measure</label>
+                <input type="text" placeholder="e.g. Case" className="w-full p-3 rounded-xl border border-zinc-700 bg-zinc-950 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold text-zinc-100 transition-shadow shadow-inner" value={newItem.unit} onChange={(e) => setNewItem({ ...newItem, unit: e.target.value })} />
+              </div>
+              <div>
+                <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1 mb-1 block">Category</label>
+                <input type="text" placeholder="e.g. Supplies" className="w-full p-3 rounded-xl border border-zinc-700 bg-zinc-950 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold text-zinc-100 transition-shadow shadow-inner" value={newItem.category} onChange={(e) => setNewItem({ ...newItem, category: e.target.value })} />
+              </div>
           </div>
           
           <div>
@@ -93,6 +130,31 @@ export const AddItemModal = ({ onSave, onClose }) => {
             <select className="w-full p-3 rounded-xl border border-zinc-700 bg-zinc-950 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold text-zinc-300 transition-shadow shadow-inner" value={newItem.preferred_vendor} onChange={(e) => setNewItem({ ...newItem, preferred_vendor: e.target.value })}>
               {GLOSSARY.vendors.map(v => <option key={v} value={v}>{v}</option>)}
             </select>
+          </div>
+
+          <div className="pt-2">
+            <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1 mb-2 block">Visible At Locations (Uncheck to hide)</label>
+            <div className="grid grid-cols-2 gap-2">
+              {Object.values(GLOSSARY.locations).map(loc => {
+                  const isHidden = (newItem.excluded_locations || []).includes(loc.id);
+                  return (
+                      <label key={loc.id} className="flex items-center gap-2 text-xs font-bold text-zinc-300 bg-zinc-950 p-2 rounded-lg border border-zinc-800 cursor-pointer hover:border-emerald-500/30 transition-colors">
+                          <input
+                            type="checkbox"
+                            checked={!isHidden}
+                            onChange={(e) => {
+                                const newExclusions = e.target.checked
+                                  ? (newItem.excluded_locations || []).filter(id => id !== loc.id)
+                                  : [...(newItem.excluded_locations || []), loc.id];
+                                setNewItem({...newItem, excluded_locations: newExclusions});
+                            }}
+                            className="w-4 h-4 rounded bg-zinc-900 border-zinc-700 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-zinc-950"
+                          />
+                          <span className="truncate">{loc.name}</span>
+                      </label>
+                  )
+              })}
+            </div>
           </div>
           
           <div className="flex gap-3 pt-4 border-t border-zinc-800 mt-6">
