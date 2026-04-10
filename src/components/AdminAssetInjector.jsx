@@ -1,12 +1,22 @@
 import React, { useState, useMemo } from 'react';
 import { GLOSSARY } from '../glossary';
 import { Plus, ChevronDown, ChevronUp, Search, PackagePlus, Edit3, X } from 'lucide-react';
-import PlanogramManager from './PlanogramManager'; 
+import PlanogramManager from './PlanogramManager/PlanogramManager'; // Ensure this path matches your folder structure
 
-export default function AdminAssetInjector({ catalog, activeLocation, activeLocRunItems, upsertRunItem, setEditingItem, setIsAddingItem, updateCatalogItem, refreshData }) {
+export default function AdminAssetInjector({ 
+  catalog, 
+  activeLocation, 
+  activeLocRunItems, 
+  upsertRunItem, 
+  setEditingItem, 
+  setIsAddingItem, 
+  updateCatalogItem, 
+  refreshData 
+}) {
   const [showInjector, setShowInjector] = useState(false);
   const [catalogSearch, setCatalogSearch] = useState("");
 
+  // Filter out items already in the run or excluded from this location
   const availableItems = useMemo(() => {
     return catalog.filter(catItem => 
       !activeLocRunItems.find(runItem => runItem.item_id === catItem.id) &&
@@ -32,8 +42,14 @@ export default function AdminAssetInjector({ catalog, activeLocation, activeLocR
 
   return (
     <div className="w-full">
-      <button onClick={() => setShowInjector(!showInjector)} className={`w-full p-3 rounded-xl border-2 transition-all font-black uppercase tracking-wider flex items-center justify-between text-sm ${showInjector ? 'border-cyan-500/50 bg-cyan-950/40 text-cyan-400' : 'border-zinc-800 bg-zinc-900 text-zinc-400'}`}>
-        <div className="flex items-center gap-2"><PackagePlus size={18} /> {isStrict ? 'Manage Planogram' : 'Add Items to Order'}</div>
+      <button 
+        onClick={() => setShowInjector(!showInjector)} 
+        className={`w-full p-3 rounded-xl border-2 transition-all font-black uppercase tracking-wider flex items-center justify-between text-sm ${showInjector ? 'border-cyan-500/50 bg-cyan-950/40 text-cyan-400' : 'border-zinc-800 bg-zinc-900 text-zinc-400'}`}
+      >
+        <div className="flex items-center gap-2">
+          <PackagePlus size={18} /> 
+          {isStrict ? 'Manage Planogram' : 'Add Items to Order'}
+        </div>
         {showInjector ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
       </button>
 
@@ -47,7 +63,7 @@ export default function AdminAssetInjector({ catalog, activeLocation, activeLocR
                 activeLocRunItems={activeLocRunItems} 
                 upsertRunItem={upsertRunItem} 
                 refreshData={refreshData} 
-                setIsAddingItem={setIsAddingItem} // <-- Passes ability to create new items
+                setIsAddingItem={setIsAddingItem}
             />
           ) : (
             <div className="space-y-6">
@@ -63,7 +79,10 @@ export default function AdminAssetInjector({ catalog, activeLocation, activeLocR
               
               <div className="space-y-6">
                 {categories.map(category => {
-                  const itemsInCat = availableItems.filter(i => (i.category || 'Uncategorized') === category && i.name.toLowerCase().includes(catalogSearch.toLowerCase()));
+                  const itemsInCat = availableItems.filter(i => 
+                    (i.category || 'Uncategorized') === category && 
+                    i.name.toLowerCase().includes(catalogSearch.toLowerCase())
+                  );
                   
                   if (itemsInCat.length === 0) return null;
 
@@ -72,9 +91,20 @@ export default function AdminAssetInjector({ catalog, activeLocation, activeLocR
                       <h4 className="text-[10px] font-black text-cyan-500 uppercase tracking-widest border-b border-zinc-800 pb-1">{category}</h4>
                       <div className="grid grid-cols-2 gap-2">
                         {itemsInCat.map(item => (
-                          <button key={item.id} onClick={() => handleQtyChange(item.id)} className="p-3 bg-zinc-900 border border-zinc-800 rounded-xl hover:border-cyan-500/50 hover:bg-cyan-950/20 transition-all text-left flex flex-col justify-between group">
+                          <button 
+                            key={item.id} 
+                            onClick={() => handleQtyChange(item.id)} 
+                            className="p-3 bg-zinc-900 border border-zinc-800 rounded-xl hover:border-cyan-500/50 hover:bg-cyan-950/20 transition-all text-left flex flex-col justify-between group"
+                          >
                             <div className="flex justify-between items-start">
-                              <span className="font-bold text-zinc-300 text-xs group-hover:text-cyan-400 leading-tight pr-2">{item.name}</span>
+                              <div className="flex flex-col">
+                                <span className="font-bold text-zinc-300 text-xs group-hover:text-cyan-400 leading-tight pr-2">{item.name}</span>
+                                {(item.item_size || (item.flavors && item.flavors.length > 0)) && (
+                                   <span className="text-[8px] text-zinc-500 uppercase font-black mt-1">
+                                      {item.item_size} {item.flavors && item.flavors.length > 0 ? `• ${item.flavors.length} Variants` : ''}
+                                   </span>
+                                )}
+                              </div>
                               <div className="flex items-center gap-1">
                                 <div onClick={(e) => handleExcludeItem(e, item)} className="p-1 rounded text-zinc-600 hover:text-rose-500 hover:bg-zinc-800 transition-colors" title="Hide item from this location">
                                     <X size={12} />
@@ -85,7 +115,9 @@ export default function AdminAssetInjector({ catalog, activeLocation, activeLocR
                                 <Plus size={14} className="text-zinc-600 group-hover:text-cyan-400 shrink-0 ml-1" />
                               </div>
                             </div>
-                            <span className="text-[9px] uppercase font-black text-zinc-600 mt-2">{item.unit}</span>
+                            <span className="text-[9px] uppercase font-black text-zinc-600 mt-2">
+                              {item.unit} {(item.item_size || (item.container_type && item.container_type !== 'None')) && <span className="border-l border-zinc-700 ml-1 pl-1 text-zinc-500">{item.item_size}</span>}
+                            </span>
                           </button>
                         ))}
                       </div>
@@ -95,7 +127,10 @@ export default function AdminAssetInjector({ catalog, activeLocation, activeLocR
               </div>
 
               <div className="pt-4 border-t border-zinc-800/50">
-                <button onClick={() => setIsAddingItem(true)} className="w-full py-3 border-2 border-dashed border-zinc-800 rounded-xl text-[10px] font-black uppercase text-zinc-500 hover:border-emerald-500/30 hover:text-emerald-400 transition-all flex items-center justify-center gap-2">
+                <button 
+                  onClick={() => setIsAddingItem(true)} 
+                  className="w-full py-3 border-2 border-dashed border-zinc-800 rounded-xl text-[10px] font-black uppercase text-zinc-500 hover:border-emerald-500/30 hover:text-emerald-400 transition-all flex items-center justify-center gap-2"
+                >
                   <Plus size={14} /> Create New Catalog Item
                 </button>
               </div>

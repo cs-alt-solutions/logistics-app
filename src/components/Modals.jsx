@@ -2,13 +2,16 @@ import React, { useState } from 'react';
 import { Edit2, X, Plus, Star } from 'lucide-react';
 import { GLOSSARY } from '../glossary';
 
-export const EditItemModal = ({ item, onSave, onClose }) => {
+export const EditItemModal = ({ item, catalog, onSave, onClose }) => {
   const [editedItem, setEditedItem] = useState({ ...item });
+  const [flavorInput, setFlavorInput] = useState((item.flavors || []).join(', '));
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!editedItem.name.trim()) return;
-    onSave(editedItem);
+    
+    const parsedFlavors = flavorInput.split(',').map(f => f.trim()).filter(f => f.length > 0);
+    onSave({ ...editedItem, flavors: parsedFlavors });
   };
 
   return (
@@ -24,30 +27,77 @@ export const EditItemModal = ({ item, onSave, onClose }) => {
         
         <form onSubmit={handleSubmit} className="space-y-4 mt-6">
           <div className="flex items-center justify-between mb-2">
-            <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1 block">Item Name</label>
+            <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1 block">Core Product Name</label>
             <button type="button" onClick={() => setEditedItem({...editedItem, is_favorite: !editedItem.is_favorite})} className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold transition-colors ${editedItem.is_favorite ? 'bg-amber-500/20 text-amber-400 border border-amber-500/50' : 'bg-zinc-800 text-zinc-500 border border-zinc-700'}`}>
               <Star size={12} className={editedItem.is_favorite ? 'fill-amber-400' : ''} /> {editedItem.is_favorite ? 'Favorited' : 'Add to Favorites'}
             </button>
           </div>
           <input type="text" className="w-full p-3 rounded-xl border border-zinc-700 bg-zinc-950 focus:outline-none focus:ring-2 focus:ring-cyan-500 font-bold text-zinc-100 transition-shadow shadow-inner" value={editedItem.name} onChange={(e) => setEditedItem({ ...editedItem, name: e.target.value })} />
           
+          {/* NEW: Flavor Input */}
+          <div>
+            <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1 mb-1 block">Flavors / Variants (Comma Separated)</label>
+            <input type="text" placeholder="e.g. Regular, Diet, Cherry" className="w-full p-3 rounded-xl border border-zinc-700 bg-zinc-950 focus:outline-none focus:ring-2 focus:ring-cyan-500 font-bold text-zinc-100 transition-shadow shadow-inner" value={flavorInput} onChange={(e) => setFlavorInput(e.target.value)} />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1 mb-1 block">Item Size (Optional)</label>
+                <input type="text" placeholder="e.g. 20 oz" className="w-full p-3 rounded-xl border border-zinc-700 bg-zinc-950 focus:outline-none focus:ring-2 focus:ring-cyan-500 font-bold text-zinc-100 transition-shadow shadow-inner" value={editedItem.item_size || ''} onChange={(e) => setEditedItem({ ...editedItem, item_size: e.target.value })} />
+              </div>
+              <div>
+                <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1 mb-1 block">Container Type</label>
+                <select className="w-full p-3 rounded-xl border border-zinc-700 bg-zinc-950 focus:outline-none focus:ring-2 focus:ring-cyan-500 font-bold text-zinc-300 transition-shadow shadow-inner" value={editedItem.container_type || 'None'} onChange={(e) => setEditedItem({ ...editedItem, container_type: e.target.value })}>
+                  {GLOSSARY.containerTypes.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1 mb-1 block">Unit of Measure</label>
-                <input type="text" className="w-full p-3 rounded-xl border border-zinc-700 bg-zinc-950 focus:outline-none focus:ring-2 focus:ring-cyan-500 font-bold text-zinc-100 transition-shadow shadow-inner" value={editedItem.unit} onChange={(e) => setEditedItem({ ...editedItem, unit: e.target.value })} />
+                <select className="w-full p-3 rounded-xl border border-zinc-700 bg-zinc-950 focus:outline-none focus:ring-2 focus:ring-cyan-500 font-bold text-zinc-300 transition-shadow shadow-inner" value={editedItem.unit} onChange={(e) => setEditedItem({ ...editedItem, unit: e.target.value })}>
+                  {GLOSSARY.units.map(u => <option key={u} value={u}>{u}</option>)}
+                </select>
               </div>
               <div>
                 <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1 mb-1 block">Category</label>
-                <input type="text" placeholder="e.g. Meat" className="w-full p-3 rounded-xl border border-zinc-700 bg-zinc-950 focus:outline-none focus:ring-2 focus:ring-cyan-500 font-bold text-zinc-100 transition-shadow shadow-inner" value={editedItem.category || ''} onChange={(e) => setEditedItem({ ...editedItem, category: e.target.value })} />
+                <select className="w-full p-3 rounded-xl border border-zinc-700 bg-zinc-950 focus:outline-none focus:ring-2 focus:ring-cyan-500 font-bold text-zinc-300 transition-shadow shadow-inner" value={editedItem.category} onChange={(e) => setEditedItem({ ...editedItem, category: e.target.value })}>
+                  {GLOSSARY.categories.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
               </div>
           </div>
           
           <div>
             <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1 mb-1 block">Primary Vendor</label>
             <select className="w-full p-3 rounded-xl border border-zinc-700 bg-zinc-950 focus:outline-none focus:ring-2 focus:ring-cyan-500 font-bold text-zinc-300 transition-shadow shadow-inner" value={editedItem.preferred_vendor} onChange={(e) => setEditedItem({ ...editedItem, preferred_vendor: e.target.value })}>
-              <option value="">Select Primary Vendor...</option>
               {GLOSSARY.vendors.map(v => <option key={v} value={v}>{v}</option>)}
             </select>
+          </div>
+
+          <div className="pt-2">
+            <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1 mb-2 block">Acceptable Alternatives</label>
+            <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto pr-1">
+              {catalog.filter(c => c.id !== editedItem.id).map(catItem => {
+                  const isAlt = (editedItem.alternative_ids || []).includes(catItem.id);
+                  return (
+                      <label key={catItem.id} className={`flex items-center gap-2 text-[10px] font-bold text-zinc-300 bg-zinc-950 p-2 rounded-lg border cursor-pointer transition-colors ${isAlt ? 'border-amber-500/50 text-amber-400' : 'border-zinc-800 hover:border-cyan-500/30'}`}>
+                          <input
+                            type="checkbox"
+                            checked={isAlt}
+                            onChange={(e) => {
+                                const newAlts = e.target.checked
+                                  ? [...(editedItem.alternative_ids || []), catItem.id]
+                                  : (editedItem.alternative_ids || []).filter(id => id !== catItem.id);
+                                setEditedItem({...editedItem, alternative_ids: newAlts});
+                            }}
+                            className="w-3 h-3 rounded bg-zinc-900 border-zinc-700 text-amber-500 focus:ring-amber-500 focus:ring-offset-zinc-950"
+                          />
+                          <span className="truncate">{catItem.name} {catItem.item_size}</span>
+                      </label>
+                  )
+              })}
+            </div>
           </div>
 
           <div className="pt-2">
@@ -85,13 +135,28 @@ export const EditItemModal = ({ item, onSave, onClose }) => {
   );
 };
 
-export const AddItemModal = ({ onSave, onClose }) => {
-  const [newItem, setNewItem] = useState({ name: '', unit: 'Each', category: 'General', preferred_vendor: GLOSSARY.defaultVendor, is_favorite: false, excluded_locations: [] });
+export const AddItemModal = ({ catalog, onSave, onClose }) => {
+  const [newItem, setNewItem] = useState({ 
+    name: '', 
+    item_size: '',
+    container_type: 'None',
+    unit: GLOSSARY.units[0], 
+    category: GLOSSARY.categories[0], 
+    preferred_vendor: GLOSSARY.vendors[0], 
+    is_favorite: false, 
+    excluded_locations: [],
+    alternative_ids: [],
+    flavors: []
+  });
+  
+  const [flavorInput, setFlavorInput] = useState('');
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!newItem.name.trim()) return;
-    onSave(newItem);
+    
+    const parsedFlavors = flavorInput.split(',').map(f => f.trim()).filter(f => f.length > 0);
+    onSave({ ...newItem, flavors: parsedFlavors });
   };
 
   return (
@@ -107,21 +172,43 @@ export const AddItemModal = ({ onSave, onClose }) => {
         
         <form onSubmit={handleSubmit} className="space-y-4 mt-6">
           <div className="flex items-center justify-between mb-2">
-            <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1 block">Item Name</label>
+            <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1 block">Core Product Name</label>
             <button type="button" onClick={() => setNewItem({...newItem, is_favorite: !newItem.is_favorite})} className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold transition-colors ${newItem.is_favorite ? 'bg-amber-500/20 text-amber-400 border border-amber-500/50' : 'bg-zinc-800 text-zinc-500 border border-zinc-700'}`}>
               <Star size={12} className={newItem.is_favorite ? 'fill-amber-400' : ''} /> {newItem.is_favorite ? 'Favorited' : 'Add to Favorites'}
             </button>
           </div>
-          <input type="text" placeholder="e.g. Paper Towels" className="w-full p-3 rounded-xl border border-zinc-700 bg-zinc-950 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold text-zinc-100 transition-shadow shadow-inner" value={newItem.name} onChange={(e) => setNewItem({ ...newItem, name: e.target.value })} autoFocus />
+          <input type="text" placeholder="e.g. Gatorade" className="w-full p-3 rounded-xl border border-zinc-700 bg-zinc-950 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold text-zinc-100 transition-shadow shadow-inner" value={newItem.name} onChange={(e) => setNewItem({ ...newItem, name: e.target.value })} autoFocus />
           
+          <div>
+            <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1 mb-1 block">Flavors / Variants (Comma Separated)</label>
+            <input type="text" placeholder="e.g. Red, Blue, Frost White" className="w-full p-3 rounded-xl border border-zinc-700 bg-zinc-950 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold text-zinc-100 transition-shadow shadow-inner" value={flavorInput} onChange={(e) => setFlavorInput(e.target.value)} />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1 mb-1 block">Item Size (Optional)</label>
+                <input type="text" placeholder="e.g. 16 oz" className="w-full p-3 rounded-xl border border-zinc-700 bg-zinc-950 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold text-zinc-100 transition-shadow shadow-inner" value={newItem.item_size} onChange={(e) => setNewItem({ ...newItem, item_size: e.target.value })} />
+              </div>
+              <div>
+                <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1 mb-1 block">Container Type</label>
+                <select className="w-full p-3 rounded-xl border border-zinc-700 bg-zinc-950 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold text-zinc-300 transition-shadow shadow-inner" value={newItem.container_type} onChange={(e) => setNewItem({ ...newItem, container_type: e.target.value })}>
+                  {GLOSSARY.containerTypes.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1 mb-1 block">Unit of Measure</label>
-                <input type="text" placeholder="e.g. Case" className="w-full p-3 rounded-xl border border-zinc-700 bg-zinc-950 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold text-zinc-100 transition-shadow shadow-inner" value={newItem.unit} onChange={(e) => setNewItem({ ...newItem, unit: e.target.value })} />
+                <select className="w-full p-3 rounded-xl border border-zinc-700 bg-zinc-950 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold text-zinc-300 transition-shadow shadow-inner" value={newItem.unit} onChange={(e) => setNewItem({ ...newItem, unit: e.target.value })}>
+                  {GLOSSARY.units.map(u => <option key={u} value={u}>{u}</option>)}
+                </select>
               </div>
               <div>
                 <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1 mb-1 block">Category</label>
-                <input type="text" placeholder="e.g. Supplies" className="w-full p-3 rounded-xl border border-zinc-700 bg-zinc-950 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold text-zinc-100 transition-shadow shadow-inner" value={newItem.category} onChange={(e) => setNewItem({ ...newItem, category: e.target.value })} />
+                <select className="w-full p-3 rounded-xl border border-zinc-700 bg-zinc-950 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold text-zinc-300 transition-shadow shadow-inner" value={newItem.category} onChange={(e) => setNewItem({ ...newItem, category: e.target.value })}>
+                  {GLOSSARY.categories.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
               </div>
           </div>
           
@@ -130,6 +217,31 @@ export const AddItemModal = ({ onSave, onClose }) => {
             <select className="w-full p-3 rounded-xl border border-zinc-700 bg-zinc-950 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold text-zinc-300 transition-shadow shadow-inner" value={newItem.preferred_vendor} onChange={(e) => setNewItem({ ...newItem, preferred_vendor: e.target.value })}>
               {GLOSSARY.vendors.map(v => <option key={v} value={v}>{v}</option>)}
             </select>
+          </div>
+
+          <div className="pt-2">
+            <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1 mb-2 block">Acceptable Alternatives</label>
+            <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto pr-1">
+              {catalog.map(catItem => {
+                  const isAlt = (newItem.alternative_ids || []).includes(catItem.id);
+                  return (
+                      <label key={catItem.id} className={`flex items-center gap-2 text-[10px] font-bold text-zinc-300 bg-zinc-950 p-2 rounded-lg border cursor-pointer transition-colors ${isAlt ? 'border-emerald-500/50 text-emerald-400' : 'border-zinc-800 hover:border-emerald-500/30'}`}>
+                          <input
+                            type="checkbox"
+                            checked={isAlt}
+                            onChange={(e) => {
+                                const newAlts = e.target.checked
+                                  ? [...(newItem.alternative_ids || []), catItem.id]
+                                  : (newItem.alternative_ids || []).filter(id => id !== catItem.id);
+                                setNewItem({...newItem, alternative_ids: newAlts});
+                            }}
+                            className="w-3 h-3 rounded bg-zinc-900 border-zinc-700 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-zinc-950"
+                          />
+                          <span className="truncate">{catItem.name} {catItem.item_size}</span>
+                      </label>
+                  )
+              })}
+            </div>
           </div>
 
           <div className="pt-2">

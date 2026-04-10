@@ -101,6 +101,18 @@ export default function App() {
     await fetchData();
   };
 
+  const abortRun = async () => {
+    if (window.confirm("Are you sure you want to ABORT and DELETE this entire run? This cannot be undone.")) {
+      const { data: activeRun } = await supabase.from('runs').select('id').neq('phase', 'IDLE').maybeSingle();
+      if (activeRun) {
+        await supabase.from('runs').delete().eq('id', activeRun.id);
+      }
+      setRunPhase(GLOSSARY.system.phases.IDLE);
+      setRunItems([]);
+      await fetchData();
+    }
+  };
+
   const updateCatalogItem = async (item) => {
     await supabase.from('catalog_items').update({ 
       name: item.name, 
@@ -108,7 +120,11 @@ export default function App() {
       preferred_vendor: item.preferred_vendor, 
       is_favorite: item.is_favorite,
       category: item.category,
-      excluded_locations: item.excluded_locations || []
+      item_size: item.item_size || '',
+      container_type: item.container_type || 'None',
+      alternative_ids: item.alternative_ids || [],
+      excluded_locations: item.excluded_locations || [],
+      flavors: item.flavors || []
     }).eq('id', item.id);
     await fetchData();
   };
@@ -122,8 +138,17 @@ export default function App() {
       preferred_vendor: newItem.preferred_vendor, 
       is_favorite: newItem.is_favorite,
       category: newItem.category,
-      excluded_locations: newItem.excluded_locations || []
+      item_size: newItem.item_size || '',
+      container_type: newItem.container_type || 'None',
+      alternative_ids: newItem.alternative_ids || [],
+      excluded_locations: newItem.excluded_locations || [],
+      flavors: newItem.flavors || []
     }]);
+    await fetchData();
+  };
+
+  const deleteCatalogItem = async (itemId) => {
+    await supabase.from('catalog_items').delete().eq('id', itemId);
     await fetchData();
   };
 
@@ -140,10 +165,10 @@ export default function App() {
               catalog={catalog} locations={locations} setLocations={setLocations}
               runItems={runItems} upsertRunItem={upsertRunItem}
               runPhase={runPhase} setRunPhase={setRunPhase}
-              dispatchRun={dispatchRun} runHistory={runHistory}
-              updateCatalogItem={updateCatalogItem} addCatalogItem={addCatalogItem}
+              dispatchRun={dispatchRun} runHistory={runHistory} abortRun={abortRun}
+              updateCatalogItem={updateCatalogItem} addCatalogItem={addCatalogItem} deleteCatalogItem={deleteCatalogItem}
               backorders={backorders} resolveBackorder={resolveBackorder} 
-              refreshData={fetchData} // <--- The master UI refresh pipeline
+              refreshData={fetchData}
             />
           ) : (
             <DriverConsole 
